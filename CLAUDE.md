@@ -65,7 +65,7 @@ Regla: el estado solo avanza hacia adelante (botón "Siguiente estado"). Permiti
 
 ## Estado del proyecto
 - [x] Fase 0: Setup
-- [ ] Fase 1: Modelo de datos + CRUD interno
+- [x] Fase 1: Modelo de datos + CRUD interno
 - [ ] Fase 2: Página pública de seguimiento
 - [ ] Fase 3: Auth + multi-tenancy
 - [ ] Fase 4: Notificaciones WhatsApp
