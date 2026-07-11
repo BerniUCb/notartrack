@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
@@ -101,8 +101,16 @@ export async function createTramite(
   redirect(`/panel/${nuevoTramite.id}`);
 }
 
+const advanceSchema = z.object({
+  tramiteId: z.uuid(),
+  comentario: z.string().trim().max(500).optional().or(z.literal("")),
+});
+
 export async function advanceTramite(formData: FormData): Promise<void> {
-  const tramiteId = z.uuid().parse(formData.get("tramiteId"));
+  const { tramiteId, comentario } = advanceSchema.parse({
+    tramiteId: formData.get("tramiteId"),
+    comentario: formData.get("comentario"),
+  });
   const notariaId = await getCurrentNotariaId();
 
   const rows = await db
@@ -129,8 +137,56 @@ export async function advanceTramite(formData: FormData): Promise<void> {
   await db.insert(historialEstado).values({
     tramiteId,
     estado: siguiente,
-    comentario: `Avanzó a ${ESTADO_LABEL[siguiente]}.`,
+    comentario: comentario || `Avanzó a ${ESTADO_LABEL[siguiente]}.`,
   });
+
+  revalidatePath(`/panel/${tramiteId}`);
+  revalidatePath("/panel");
+}
+
+/**
+ * Deshace el último cambio de estado: revierte un paso y elimina esa fila del
+ * historial (pensado para corregir un avance clickeado por error). Mantiene el
+ * timeline limpio para el cliente en la página pública.
+ *
+ * Fase 3: cuando haya auth, esta acción debe quedar restringida al rol NOTARIO
+ * (regla de CLAUDE.md: retroceder solo con NOTARIO). Hoy no hay roles todavía.
+ */
+export async function revertTramite(formData: FormData): Promise<void> {
+  const { tramiteId } = z
+    .object({ tramiteId: z.uuid() })
+    .parse({ tramiteId: formData.get("tramiteId") });
+  const notariaId = await getCurrentNotariaId();
+
+  const existe = await db
+    .select({ id: tramite.id })
+    .from(tramite)
+    .where(and(eq(tramite.id, tramiteId), eq(tramite.notariaId, notariaId)))
+    .limit(1);
+
+  if (existe.length === 0) {
+    throw new Error("Trámite no encontrado.");
+  }
+
+  // Los dos últimos eventos del historial: [0] es el actual, [1] al que volvemos.
+  const ultimos = await db
+    .select({ id: historialEstado.id, estado: historialEstado.estado })
+    .from(historialEstado)
+    .where(eq(historialEstado.tramiteId, tramiteId))
+    .orderBy(desc(historialEstado.createdAt))
+    .limit(2);
+
+  // Con un solo evento (RECIBIDO inicial) no hay nada que deshacer.
+  if (ultimos.length < 2) return;
+
+  const anterior = ultimos[1].estado;
+
+  await db.delete(historialEstado).where(eq(historialEstado.id, ultimos[0].id));
+
+  await db
+    .update(tramite)
+    .set({ estadoActual: anterior, fechaEntrega: null })
+    .where(eq(tramite.id, tramiteId));
 
   revalidatePath(`/panel/${tramiteId}`);
   revalidatePath("/panel");

@@ -1,9 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { AdvanceButton } from "@/components/advance-button";
+import { AdvanceButton, RevertButton } from "@/components/advance-button";
 import { EstadoBadge } from "@/components/estado-badge";
-import { ESTADO_LABEL, TIPO_LABEL, nextEstado } from "@/lib/estados";
+import {
+  ESTADO_LABEL,
+  TIPO_LABEL,
+  nextEstado,
+  previousEstado,
+} from "@/lib/estados";
 import { formatFecha, formatFechaHora } from "@/lib/format";
 import { getCurrentNotariaId } from "@/lib/tenant";
 import { getTramiteDetail } from "@/lib/tramites";
@@ -21,6 +26,7 @@ export default async function TramiteDetailPage({
 
   const { tramite: t, historial } = data;
   const siguiente = nextEstado(t.estadoActual);
+  const anterior = previousEstado(t.estadoActual);
 
   return (
     <div className="flex flex-col gap-5">
@@ -74,8 +80,8 @@ export default async function TramiteDetailPage({
         ) : null}
       </dl>
 
-      {/* Avanzar estado */}
-      <div className="rounded-md border p-4">
+      {/* Acciones de estado */}
+      <div className="flex flex-col gap-3 rounded-md border p-4">
         {siguiente ? (
           <AdvanceButton
             tramiteId={t.id}
@@ -87,6 +93,9 @@ export default async function TramiteDetailPage({
             por avanzar.
           </p>
         )}
+        {anterior ? (
+          <RevertButton tramiteId={t.id} anteriorLabel={ESTADO_LABEL[anterior]} />
+        ) : null}
       </div>
 
       {/* Timeline del historial */}

@@ -3,17 +3,29 @@
 import { useState } from "react";
 import { useFormStatus } from "react-dom";
 
-import { advanceTramite } from "@/actions/tramites";
+import { advanceTramite, revertTramite } from "@/actions/tramites";
 
-function ConfirmSubmit() {
+function SubmitButton({
+  label,
+  pendingLabel,
+  variant = "primary",
+}: {
+  label: string;
+  pendingLabel: string;
+  variant?: "primary" | "danger";
+}) {
   const { pending } = useFormStatus();
+  const styles =
+    variant === "danger"
+      ? "border border-input bg-background text-red-700"
+      : "bg-primary text-primary-foreground";
   return (
     <button
       type="submit"
       disabled={pending}
-      className="inline-flex h-11 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-60"
+      className={`inline-flex h-11 items-center justify-center rounded-md px-4 text-sm font-medium disabled:opacity-60 ${styles}`}
     >
-      {pending ? "Avanzando…" : "Sí, avanzar"}
+      {pending ? pendingLabel : label}
     </button>
   );
 }
@@ -43,11 +55,63 @@ export function AdvanceButton({
     <form action={advanceTramite} className="flex flex-col gap-3">
       <input type="hidden" name="tramiteId" value={tramiteId} />
       <p className="text-sm">
-        ¿Confirmás el avance a <strong>{siguienteLabel}</strong>? Esta acción
-        queda registrada en el historial.
+        ¿Confirmás el avance a <strong>{siguienteLabel}</strong>? Queda
+        registrado en el historial.
+      </p>
+      <textarea
+        name="comentario"
+        rows={2}
+        placeholder="Comentario (opcional). Ej: falta el pago del arancel."
+        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      />
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <SubmitButton label="Sí, avanzar" pendingLabel="Avanzando…" />
+        <button
+          type="button"
+          onClick={() => setConfirming(false)}
+          className="inline-flex h-11 items-center justify-center rounded-md border border-input bg-background px-4 text-sm font-medium"
+        >
+          Cancelar
+        </button>
+      </div>
+    </form>
+  );
+}
+
+export function RevertButton({
+  tramiteId,
+  anteriorLabel,
+}: {
+  tramiteId: string;
+  anteriorLabel: string;
+}) {
+  const [confirming, setConfirming] = useState(false);
+
+  if (!confirming) {
+    return (
+      <button
+        type="button"
+        onClick={() => setConfirming(true)}
+        className="text-sm text-muted-foreground underline-offset-2 hover:underline"
+      >
+        ¿Te equivocaste? Volver a {anteriorLabel}
+      </button>
+    );
+  }
+
+  return (
+    <form action={revertTramite} className="flex flex-col gap-3">
+      <input type="hidden" name="tramiteId" value={tramiteId} />
+      <p className="text-sm">
+        Esto vuelve el trámite a <strong>{anteriorLabel}</strong> y borra el
+        último cambio del historial. ¿Continuar?
       </p>
       <div className="flex flex-col gap-2 sm:flex-row">
-        <ConfirmSubmit />
+        <SubmitButton
+          label={`Sí, volver a ${anteriorLabel}`}
+          pendingLabel="Deshaciendo…"
+          variant="danger"
+        />
         <button
           type="button"
           onClick={() => setConfirming(false)}

@@ -38,6 +38,12 @@ export function nextEstado(estado: Estado): Estado | null {
   return i >= 0 && i < ESTADOS.length - 1 ? ESTADOS[i + 1] : null;
 }
 
+/** Devuelve el estado anterior en el flujo, o null si es el inicial (RECIBIDO). */
+export function previousEstado(estado: Estado): Estado | null {
+  const i = ESTADOS.indexOf(estado);
+  return i > 0 ? ESTADOS[i - 1] : null;
+}
+
 // Tipos de trámite.
 export const TIPOS = [
   "PODER",
