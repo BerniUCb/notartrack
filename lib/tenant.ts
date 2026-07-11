@@ -1,16 +1,46 @@
-import { db } from "@/db";
-import { notaria } from "@/db/schema";
+import { redirect } from "next/navigation";
 
-// Hasta la Fase 3 (auth) no hay usuario logueado. Como sólo existe una notaría
-// (la del seed), tomamos la primera. Cuando llegue auth, esto se reemplaza por
-// la notaría del usuario de la sesión. Toda query del panel debe seguir
-// filtrando por notariaId para no romper el aislamiento multi-tenant.
-export async function getCurrentNotariaId(): Promise<string> {
-  const rows = await db.select({ id: notaria.id }).from(notaria).limit(1);
-  if (rows.length === 0) {
-    throw new Error(
-      "No hay ninguna notaría cargada. Ejecutá `npm run db:seed`.",
-    );
+import { auth } from "@/auth";
+import type { Rol } from "@/lib/estados";
+
+export type SessionUser = {
+  id: string;
+  notariaId: string;
+  rol: Rol;
+  nombre: string;
+  email: string;
+};
+
+/**
+ * Usuario de la sesión actual. Si no hay sesión, redirige a /login (defensa en
+ * profundidad: el middleware ya protege /panel, pero las queries/acciones no
+ * deben confiar sólo en él).
+ */
+export async function getCurrentUser(): Promise<SessionUser> {
+  const session = await auth();
+  if (!session?.user) {
+    redirect("/login");
   }
-  return rows[0].id;
+  return {
+    id: session.user.id,
+    notariaId: session.user.notariaId,
+    rol: session.user.rol,
+    nombre: session.user.nombre,
+    email: session.user.email ?? "",
+  };
+}
+
+/** notariaId del usuario en sesión. Toda query del panel debe filtrar por este. */
+export async function getCurrentNotariaId(): Promise<string> {
+  const user = await getCurrentUser();
+  return user.notariaId;
+}
+
+/** Exige rol NOTARIO; lanza si no lo es (para acciones restringidas). */
+export async function requireNotario(): Promise<SessionUser> {
+  const user = await getCurrentUser();
+  if (user.rol !== "NOTARIO") {
+    throw new Error("Acción permitida solo para el rol Notario.");
+  }
+  return user;
 }

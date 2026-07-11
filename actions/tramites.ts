@@ -2,13 +2,22 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { and, desc, eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
 import { cliente, historialEstado, tramite } from "@/db/schema";
-import { ESTADO_LABEL, TIPOS, nextEstado } from "@/lib/estados";
-import { getCurrentNotariaId } from "@/lib/tenant";
+import {
+  ESTADO_LABEL,
+  TIPOS,
+  nextEstado,
+  previousEstado,
+} from "@/lib/estados";
+import {
+  getCurrentNotariaId,
+  getCurrentUser,
+  requireNotario,
+} from "@/lib/tenant";
 import { generateTrackingCode } from "@/lib/tracking-code";
 
 const createSchema = z.object({
@@ -52,7 +61,8 @@ export async function createTramite(
   }
 
   const data = parsed.data;
-  const notariaId = await getCurrentNotariaId();
+  const user = await getCurrentUser();
+  const notariaId = user.notariaId;
 
   // Buscar cliente existente por CI dentro de la notaría, o crearlo.
   let clienteId: string;
@@ -95,6 +105,7 @@ export async function createTramite(
     tramiteId: nuevoTramite.id,
     estado: "RECIBIDO",
     comentario: "Trámite recibido en la notaría.",
+    usuarioId: user.id,
   });
 
   revalidatePath("/panel");
@@ -111,12 +122,12 @@ export async function advanceTramite(formData: FormData): Promise<void> {
     tramiteId: formData.get("tramiteId"),
     comentario: formData.get("comentario"),
   });
-  const notariaId = await getCurrentNotariaId();
+  const user = await getCurrentUser();
 
   const rows = await db
     .select({ estadoActual: tramite.estadoActual })
     .from(tramite)
-    .where(and(eq(tramite.id, tramiteId), eq(tramite.notariaId, notariaId)))
+    .where(and(eq(tramite.id, tramiteId), eq(tramite.notariaId, user.notariaId)))
     .limit(1);
 
   if (rows.length === 0) {
@@ -138,55 +149,58 @@ export async function advanceTramite(formData: FormData): Promise<void> {
     tramiteId,
     estado: siguiente,
     comentario: comentario || `Avanzó a ${ESTADO_LABEL[siguiente]}.`,
+    usuarioId: user.id,
   });
 
   revalidatePath(`/panel/${tramiteId}`);
   revalidatePath("/panel");
 }
 
+const revertSchema = z.object({
+  tramiteId: z.uuid(),
+  comentario: z
+    .string()
+    .trim()
+    .min(1, "El comentario es obligatorio para retroceder.")
+    .max(500),
+});
+
 /**
- * Deshace el último cambio de estado: revierte un paso y elimina esa fila del
- * historial (pensado para corregir un avance clickeado por error). Mantiene el
- * timeline limpio para el cliente en la página pública.
- *
- * Fase 3: cuando haya auth, esta acción debe quedar restringida al rol NOTARIO
- * (regla de CLAUDE.md: retroceder solo con NOTARIO). Hoy no hay roles todavía.
+ * Retrocede el trámite un estado. Solo el rol NOTARIO puede hacerlo y el
+ * comentario es obligatorio (regla de CLAUDE.md). Registra una fila en el
+ * historial con el usuario que lo hizo (queda auditado).
  */
 export async function revertTramite(formData: FormData): Promise<void> {
-  const { tramiteId } = z
-    .object({ tramiteId: z.uuid() })
-    .parse({ tramiteId: formData.get("tramiteId") });
-  const notariaId = await getCurrentNotariaId();
+  const { tramiteId, comentario } = revertSchema.parse({
+    tramiteId: formData.get("tramiteId"),
+    comentario: formData.get("comentario"),
+  });
+  const user = await requireNotario();
 
-  const existe = await db
-    .select({ id: tramite.id })
+  const rows = await db
+    .select({ estadoActual: tramite.estadoActual })
     .from(tramite)
-    .where(and(eq(tramite.id, tramiteId), eq(tramite.notariaId, notariaId)))
+    .where(and(eq(tramite.id, tramiteId), eq(tramite.notariaId, user.notariaId)))
     .limit(1);
 
-  if (existe.length === 0) {
+  if (rows.length === 0) {
     throw new Error("Trámite no encontrado.");
   }
 
-  // Los dos últimos eventos del historial: [0] es el actual, [1] al que volvemos.
-  const ultimos = await db
-    .select({ id: historialEstado.id, estado: historialEstado.estado })
-    .from(historialEstado)
-    .where(eq(historialEstado.tramiteId, tramiteId))
-    .orderBy(desc(historialEstado.createdAt))
-    .limit(2);
-
-  // Con un solo evento (RECIBIDO inicial) no hay nada que deshacer.
-  if (ultimos.length < 2) return;
-
-  const anterior = ultimos[1].estado;
-
-  await db.delete(historialEstado).where(eq(historialEstado.id, ultimos[0].id));
+  const anterior = previousEstado(rows[0].estadoActual);
+  if (!anterior) return; // Ya está en RECIBIDO: no hay estado anterior.
 
   await db
     .update(tramite)
     .set({ estadoActual: anterior, fechaEntrega: null })
     .where(eq(tramite.id, tramiteId));
+
+  await db.insert(historialEstado).values({
+    tramiteId,
+    estado: anterior,
+    comentario,
+    usuarioId: user.id,
+  });
 
   revalidatePath(`/panel/${tramiteId}`);
   revalidatePath("/panel");

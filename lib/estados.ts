@@ -66,3 +66,13 @@ export const TIPO_LABEL: Record<Tipo, string> = {
   DECLARACION_JURADA: "Declaración jurada",
   OTRO: "Otro",
 };
+
+// Roles de usuario del panel interno.
+export const ROLES = ["NOTARIO", "SECRETARIA"] as const;
+
+export type Rol = (typeof ROLES)[number];
+
+export const ROL_LABEL: Record<Rol, string> = {
+  NOTARIO: "Notario",
+  SECRETARIA: "Secretaria",
+};

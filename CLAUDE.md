@@ -67,7 +67,7 @@ Regla: el estado solo avanza hacia adelante (botón "Siguiente estado"). Permiti
 - [x] Fase 0: Setup
 - [x] Fase 1: Modelo de datos + CRUD interno
 - [x] Fase 2: Página pública de seguimiento
-- [ ] Fase 3: Auth + multi-tenancy
+- [x] Fase 3: Auth + multi-tenancy
 - [ ] Fase 4: Notificaciones WhatsApp
 - [ ] Fase 5: Pulido para demo
 

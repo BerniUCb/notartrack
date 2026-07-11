@@ -8,6 +8,13 @@
       "when": 1783782535395,
       "tag": "0000_classy_firestar",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1783788852385,
+      "tag": "0001_red_fantastic_four",
+      "breakpoints": true
     }
   ]
 }

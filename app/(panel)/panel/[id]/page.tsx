@@ -10,7 +10,7 @@ import {
   previousEstado,
 } from "@/lib/estados";
 import { formatFecha, formatFechaHora } from "@/lib/format";
-import { getCurrentNotariaId } from "@/lib/tenant";
+import { getCurrentUser } from "@/lib/tenant";
 import { getTramiteDetail } from "@/lib/tramites";
 
 export default async function TramiteDetailPage({
@@ -19,8 +19,8 @@ export default async function TramiteDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const notariaId = await getCurrentNotariaId();
-  const data = await getTramiteDetail({ id, notariaId });
+  const user = await getCurrentUser();
+  const data = await getTramiteDetail({ id, notariaId: user.notariaId });
 
   if (!data) notFound();
 
@@ -93,7 +93,7 @@ export default async function TramiteDetailPage({
             por avanzar.
           </p>
         )}
-        {anterior ? (
+        {anterior && user.rol === "NOTARIO" ? (
           <RevertButton tramiteId={t.id} anteriorLabel={ESTADO_LABEL[anterior]} />
         ) : null}
       </div>

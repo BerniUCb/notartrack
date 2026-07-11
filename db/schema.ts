@@ -8,10 +8,11 @@ import {
 } from "drizzle-orm/pg-core";
 
 // Enums de negocio (fuente de verdad en lib/estados.ts).
-import { ESTADOS, TIPOS } from "../lib/estados";
+import { ESTADOS, ROLES, TIPOS } from "../lib/estados";
 
 export const tramiteTipoEnum = pgEnum("tramite_tipo", TIPOS);
 export const tramiteEstadoEnum = pgEnum("tramite_estado", ESTADOS);
+export const rolEnum = pgEnum("rol", ROLES);
 
 export const notaria = pgTable("notaria", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -64,6 +65,20 @@ export const tramite = pgTable("tramite", {
   fechaEntrega: timestamp("fecha_entrega", { withTimezone: true }),
 });
 
+export const usuario = pgTable("usuario", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  notariaId: uuid("notaria_id")
+    .notNull()
+    .references(() => notaria.id, { onDelete: "cascade" }),
+  nombre: text("nombre").notNull(),
+  email: text("email").notNull().unique(),
+  passwordHash: text("password_hash").notNull(),
+  rol: rolEnum("rol").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
 export const historialEstado = pgTable("historial_estado", {
   id: uuid("id").primaryKey().defaultRandom(),
   tramiteId: uuid("tramite_id")
@@ -71,8 +86,11 @@ export const historialEstado = pgTable("historial_estado", {
     .references(() => tramite.id, { onDelete: "cascade" }),
   estado: tramiteEstadoEnum("estado").notNull(),
   comentario: text("comentario"),
-  // Se completa desde la Fase 3 (auth). Nullable hasta entonces.
-  usuarioId: uuid("usuario_id"),
+  // Quién hizo el cambio de estado (desde la Fase 3). Nullable por si el
+  // usuario se elimina más adelante (onDelete: set null).
+  usuarioId: uuid("usuario_id").references(() => usuario.id, {
+    onDelete: "set null",
+  }),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
@@ -82,3 +100,4 @@ export type Notaria = typeof notaria.$inferSelect;
 export type Cliente = typeof cliente.$inferSelect;
 export type Tramite = typeof tramite.$inferSelect;
 export type HistorialEstado = typeof historialEstado.$inferSelect;
+export type Usuario = typeof usuario.$inferSelect;

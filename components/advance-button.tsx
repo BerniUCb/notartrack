@@ -94,7 +94,7 @@ export function RevertButton({
         onClick={() => setConfirming(true)}
         className="text-sm text-muted-foreground underline-offset-2 hover:underline"
       >
-        ¿Te equivocaste? Volver a {anteriorLabel}
+        Retroceder a {anteriorLabel}
       </button>
     );
   }
@@ -103,13 +103,20 @@ export function RevertButton({
     <form action={revertTramite} className="flex flex-col gap-3">
       <input type="hidden" name="tramiteId" value={tramiteId} />
       <p className="text-sm">
-        Esto vuelve el trámite a <strong>{anteriorLabel}</strong> y borra el
-        último cambio del historial. ¿Continuar?
+        Esto vuelve el trámite a <strong>{anteriorLabel}</strong>. Queda
+        registrado en el historial con tu comentario.
       </p>
+      <textarea
+        name="comentario"
+        rows={2}
+        required
+        placeholder="Motivo del retroceso (obligatorio)."
+        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      />
       <div className="flex flex-col gap-2 sm:flex-row">
         <SubmitButton
-          label={`Sí, volver a ${anteriorLabel}`}
-          pendingLabel="Deshaciendo…"
+          label={`Volver a ${anteriorLabel}`}
+          pendingLabel="Retrocediendo…"
           variant="danger"
         />
         <button
