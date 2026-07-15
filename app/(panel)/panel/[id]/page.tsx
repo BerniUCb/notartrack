@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { reenviarNotificacion } from "@/actions/notificaciones";
 import { AdvanceButton, RevertButton } from "@/components/advance-button";
 import { EstadoBadge } from "@/components/estado-badge";
 import {
@@ -10,6 +11,7 @@ import {
   previousEstado,
 } from "@/lib/estados";
 import { formatFecha, formatFechaHora } from "@/lib/format";
+import { getUltimaNotificacion } from "@/lib/notificaciones";
 import { getCurrentUser } from "@/lib/tenant";
 import { getTramiteDetail } from "@/lib/tramites";
 
@@ -27,6 +29,12 @@ export default async function TramiteDetailPage({
   const { tramite: t, historial } = data;
   const siguiente = nextEstado(t.estadoActual);
   const anterior = previousEstado(t.estadoActual);
+
+  // La notificación aplica cuando el trámite está listo para recoger.
+  const mostrarNotificacion = t.estadoActual === "LISTO_PARA_RECOGER";
+  const ultimaNotif = mostrarNotificacion
+    ? await getUltimaNotificacion(t.id)
+    : null;
 
   return (
     <div className="flex flex-col gap-5">
@@ -97,6 +105,61 @@ export default async function TramiteDetailPage({
           <RevertButton tramiteId={t.id} anteriorLabel={ESTADO_LABEL[anterior]} />
         ) : null}
       </div>
+
+      {/* Notificación WhatsApp (solo cuando está listo para recoger) */}
+      {mostrarNotificacion ? (
+        <div className="flex flex-col gap-3 rounded-md border p-4">
+          <h2 className="text-sm font-semibold">Notificación por WhatsApp</h2>
+
+          {!t.whatsappActivo ? (
+            <p className="text-sm text-muted-foreground">
+              WhatsApp no está activo para esta notaría.
+            </p>
+          ) : (
+            <>
+              {ultimaNotif ? (
+                <div className="text-sm">
+                  <p>
+                    Estado:{" "}
+                    <span
+                      className={
+                        ultimaNotif.estado === "ENVIADO"
+                          ? "font-medium text-emerald-700"
+                          : "font-medium text-red-700"
+                      }
+                    >
+                      {ultimaNotif.estado === "ENVIADO" ? "Enviada" : "Fallida"}
+                    </span>{" "}
+                    a {ultimaNotif.celular}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {formatFechaHora(ultimaNotif.createdAt)}
+                  </p>
+                  {ultimaNotif.error ? (
+                    <p className="mt-1 text-xs text-red-600">
+                      {ultimaNotif.error}
+                    </p>
+                  ) : null}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Todavía no se registró ningún envío para este trámite.
+                </p>
+              )}
+
+              <form action={reenviarNotificacion}>
+                <input type="hidden" name="tramiteId" value={t.id} />
+                <button
+                  type="submit"
+                  className="inline-flex h-11 items-center justify-center rounded-md border border-input bg-background px-4 text-sm font-medium sm:w-auto"
+                >
+                  Reenviar notificación
+                </button>
+              </form>
+            </>
+          )}
+        </div>
+      ) : null}
 
       {/* Timeline del historial */}
       <div className="flex flex-col gap-3">

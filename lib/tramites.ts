@@ -1,7 +1,7 @@
 import { and, desc, eq, ilike, or } from "drizzle-orm";
 
 import { db } from "@/db";
-import { cliente, historialEstado, tramite } from "@/db/schema";
+import { cliente, historialEstado, notaria, tramite } from "@/db/schema";
 import type { Estado } from "@/lib/estados";
 
 export async function listTramites(params: {
@@ -57,9 +57,11 @@ export async function getTramiteDetail(params: {
       clienteNombre: cliente.nombreCompleto,
       clienteCi: cliente.ci,
       clienteCelular: cliente.celular,
+      whatsappActivo: notaria.whatsappActivo,
     })
     .from(tramite)
     .innerJoin(cliente, eq(tramite.clienteId, cliente.id))
+    .innerJoin(notaria, eq(tramite.notariaId, notaria.id))
     .where(and(eq(tramite.id, params.id), eq(tramite.notariaId, params.notariaId)))
     .limit(1);
 

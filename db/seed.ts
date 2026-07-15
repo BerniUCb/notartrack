@@ -70,6 +70,7 @@ type NotariaSeed = {
     numeroNotaria: string;
     ciudad: string;
     telefono: string;
+    whatsappActivo: boolean;
   };
   usuarios: UsuarioSeed[];
   clientes: ClienteSeed[];
@@ -86,6 +87,7 @@ const NOTARIAS: NotariaSeed[] = [
       numeroNotaria: "42",
       ciudad: "Cochabamba",
       telefono: "4-4258963",
+      whatsappActivo: true,
     },
     usuarios: [
       { nombre: "Dr. Ramiro Salinas Gutiérrez", email: "notario@notaria42.bo", rol: "NOTARIO" },
@@ -119,6 +121,7 @@ const NOTARIAS: NotariaSeed[] = [
       numeroNotaria: "7",
       ciudad: "La Paz",
       telefono: "2-2445871",
+      whatsappActivo: false,
     },
     usuarios: [
       { nombre: "Dra. Elena Aramayo Michel", email: "notario@notaria7.bo", rol: "NOTARIO" },

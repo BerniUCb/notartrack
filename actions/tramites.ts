@@ -13,6 +13,7 @@ import {
   nextEstado,
   previousEstado,
 } from "@/lib/estados";
+import { notificarListoParaRecoger } from "@/lib/notificaciones";
 import {
   getCurrentNotariaId,
   getCurrentUser,
@@ -151,6 +152,12 @@ export async function advanceTramite(formData: FormData): Promise<void> {
     comentario: comentario || `Avanzó a ${ESTADO_LABEL[siguiente]}.`,
     usuarioId: user.id,
   });
+
+  // Notificación automática al pasar a LISTO_PARA_RECOGER. No bloquea ni rompe
+  // el cambio de estado: si falla, ya quedó persistido y el error se registra.
+  if (siguiente === "LISTO_PARA_RECOGER") {
+    await notificarListoParaRecoger(tramiteId, user.notariaId);
+  }
 
   revalidatePath(`/panel/${tramiteId}`);
   revalidatePath("/panel");

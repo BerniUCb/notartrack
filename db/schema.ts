@@ -1,4 +1,5 @@
 import {
+  boolean,
   pgEnum,
   pgTable,
   text,
@@ -13,6 +14,10 @@ import { ESTADOS, ROLES, TIPOS } from "../lib/estados";
 export const tramiteTipoEnum = pgEnum("tramite_tipo", TIPOS);
 export const tramiteEstadoEnum = pgEnum("tramite_estado", ESTADOS);
 export const rolEnum = pgEnum("rol", ROLES);
+export const notificacionEstadoEnum = pgEnum("notificacion_estado", [
+  "ENVIADO",
+  "FALLIDO",
+]);
 
 export const notaria = pgTable("notaria", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -21,6 +26,8 @@ export const notaria = pgTable("notaria", {
   ciudad: text("ciudad").notNull(),
   logoUrl: text("logo_url"),
   telefono: text("telefono"),
+  // Feature flag: solo se envían notificaciones de WhatsApp si está activo.
+  whatsappActivo: boolean("whatsapp_activo").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
@@ -96,8 +103,23 @@ export const historialEstado = pgTable("historial_estado", {
     .notNull(),
 });
 
+export const notificacionLog = pgTable("notificacion_log", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  tramiteId: uuid("tramite_id")
+    .notNull()
+    .references(() => tramite.id, { onDelete: "cascade" }),
+  celular: text("celular").notNull(),
+  mensaje: text("mensaje").notNull(),
+  estado: notificacionEstadoEnum("estado").notNull(),
+  error: text("error"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
 export type Notaria = typeof notaria.$inferSelect;
 export type Cliente = typeof cliente.$inferSelect;
 export type Tramite = typeof tramite.$inferSelect;
 export type HistorialEstado = typeof historialEstado.$inferSelect;
 export type Usuario = typeof usuario.$inferSelect;
+export type NotificacionLog = typeof notificacionLog.$inferSelect;
