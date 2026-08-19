@@ -9,6 +9,24 @@ Many notary offices lose hours answering calls asking "is my document ready yet?
 
 When the procedure is **ready for pickup**, the client automatically receives a **WhatsApp notification**.
 
+## Screenshots
+
+**Internal panel — procedure list with live statuses**
+
+![Internal panel](panel.png)
+
+**Public tracking — courier-style timeline**
+
+![Public tracking timeline](timeline.png)
+
+**Public search page**
+
+![Public tracking search](seguimiento.png)
+
+**Sign in**
+
+![Login](login.png)
+
 ---
 
 ## Features
