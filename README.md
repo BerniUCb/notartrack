@@ -1,109 +1,113 @@
 # NotarTrack
 
-**SaaS multi-tenant de gestión y seguimiento de trámites para notarías de fe pública en Bolivia.**
+**Multi-tenant SaaS for managing and tracking legal procedures at public notary offices in Bolivia.**
 
-Muchas notarías pierden horas atendiendo llamadas de "¿ya está listo mi documento?". NotarTrack resuelve eso con dos caras:
+Many notary offices lose hours answering calls asking "is my document ready yet?". NotarTrack solves this with two sides:
 
-- **Panel interno**: la secretaria o el notario registran un trámite y avanzan su estado con un botón. Cada trámite tiene un código de seguimiento único (ej. `NT-8F3K2`).
-- **Página pública de seguimiento**: el cliente ingresa su código o su cédula y ve el estado de su trámite en un timeline estilo *tracking de courier*, sin necesidad de iniciar sesión.
+- **Internal panel**: the secretary or notary registers a procedure and advances its status with a button. Each procedure has a unique tracking code (e.g. `NT-8F3K2`).
+- **Public tracking page**: the client enters their code or ID number and sees the status of their procedure in a *courier-style tracking* timeline, with no login required.
 
-Cuando el trámite queda **listo para recoger**, el cliente recibe automáticamente una **notificación por WhatsApp**.
+When the procedure is **ready for pickup**, the client automatically receives a **WhatsApp notification**.
 
 ---
 
-## Características
+## Features
 
-**Panel interno (privado, por notaría)**
-- Autenticación con email + contraseña (Auth.js + bcrypt) y dos roles: **Notario** y **Secretaria**.
-- Alta de trámites con búsqueda/creación de cliente por CI y validación con Zod.
-- Flujo de estados lineal (`Recibido → En elaboración → Para firma → Protocolizado → Listo para recoger → Entregado`) con historial auditado (quién y cuándo).
-- El **Notario** puede retroceder estados con comentario obligatorio; la Secretaria no.
-- Gestión de usuarios de la propia notaría (solo Notario).
+**Internal panel (private, per notary office)**
 
-**Página pública de seguimiento**
-- Búsqueda por código o por cédula (con selección de notaría).
-- Timeline visual: pasos completados, actual y pendientes, con fecha y hora.
-- Datos sensibles protegidos: CI enmascarado, sin observaciones internas.
-- Rate limiting por IP para evitar scraping y `noindex` en las vistas de trámite.
+- Authentication with email + password (Auth.js + bcrypt) and two roles: **Notary** and **Secretary**.
+- Procedure creation with client lookup/creation by ID number and validation with Zod.
+- Linear status flow (`Received → In preparation → For signature → Notarized → Ready for pickup → Delivered`) with an audited history (who and when).
+- The **Notary** can move statuses backward with a mandatory comment; the Secretary cannot.
+- Management of the office's own users (Notary only).
 
-**Notificaciones**
-- Envío automático por WhatsApp al pasar a *Listo para recoger* (WhatsApp Cloud API de Meta).
-- El envío está **aislado** en un solo módulo para poder cambiar de proveedor sin tocar el resto.
-- No bloquea ni rompe el cambio de estado: cada intento queda registrado (`ENVIADO` / `FALLIDO` + error).
-- *Feature flag* de WhatsApp por notaría.
+**Public tracking page**
+
+- Search by code or ID number (with notary office selection).
+- Visual timeline: completed, current and pending steps, with date and time.
+- Sensitive data protected: masked ID number, no internal notes shown.
+- Per-IP rate limiting to prevent scraping, and `noindex` on procedure views.
+
+**Notifications**
+
+- Automatic WhatsApp message when a procedure moves to *Ready for pickup* (Meta's WhatsApp Cloud API).
+- Sending is **isolated** in a single module so the provider can be swapped without touching the rest.
+- It never blocks or breaks the status change: every attempt is logged (`SENT` / `FAILED` + error).
+- Per-office WhatsApp *feature flag*.
 
 **Multi-tenancy**
-- Toda query del panel filtra por la notaría del usuario en sesión. Un trámite de otra notaría no es accesible ni por URL directa (devuelve 404).
+
+- Every panel query filters by the logged-in user's notary office. A procedure from another office is not accessible, even via direct URL (returns 404).
 
 ---
 
 ## Stack
 
-- **Next.js 15** (App Router, Server Actions, TypeScript estricto)
+- **Next.js 15** (App Router, Server Actions, strict TypeScript)
 - **PostgreSQL** (Neon) + **Drizzle ORM**
-- **Auth.js** (NextAuth v5) con proveedor de credenciales + **bcrypt**
+- **Auth.js** (NextAuth v5) with credentials provider + **bcrypt**
 - **Tailwind CSS** + **shadcn/ui**
 - **WhatsApp Cloud API** (Meta)
-- Deploy en **Vercel**
+- Deployed on **Vercel**
 
 ---
 
-## Estructura
+## Structure
 
 ```
 /app
-  /(public)/seguimiento   → página pública de tracking
-  /(panel)/panel          → dashboard interno (protegido)
-  /login                  → ingreso
-  /api/auth               → handler de Auth.js
-/actions                  → Server Actions (mutaciones)
-/lib                      → lógica de negocio, db, utils
-/db                       → schema de Drizzle, migraciones y seed
-/components               → UI compartida
+  /(public)/seguimiento   → public tracking page
+  /(panel)/panel          → internal dashboard (protected)
+  /login                  → sign in
+  /api/auth               → Auth.js handler
+/actions                  → Server Actions (mutations)
+/lib                      → business logic, db, utils
+/db                       → Drizzle schema, migrations and seed
+/components               → shared UI
 ```
 
 ---
 
-## Cómo correrlo localmente
+## Running it locally
 
-**Requisitos:** Node.js 20+ y una base PostgreSQL (recomendado: [Neon](https://neon.tech), gratis).
+**Requirements:** Node.js 20+ and a PostgreSQL database (recommended: [Neon](https://neon.tech), free).
 
-```bash
-# 1. Instalar dependencias
+```
+# 1. Install dependencies
 npm install
 
-# 2. Configurar variables de entorno
+# 2. Set up environment variables
 cp .env.example .env.local
-# completar DATABASE_URL, AUTH_SECRET y (opcional) las variables de WhatsApp
+# fill in DATABASE_URL, AUTH_SECRET and (optional) the WhatsApp variables
 
-# 3. Crear las tablas y cargar datos de prueba
+# 3. Create the tables and load sample data
 npm run db:migrate
 npm run db:seed
 
-# 4. Levantar el proyecto
+# 4. Start the project
 npm run dev
 ```
 
-Abrí [http://localhost:3000/seguimiento](http://localhost:3000/seguimiento) (público) o [http://localhost:3000/panel](http://localhost:3000/panel) (panel).
+Open <http://localhost:3000/seguimiento> (public) or <http://localhost:3000/panel> (internal panel).
 
-**Usuarios de prueba** (contraseña `notaria123`):
+**Test users** (password `notaria123`):
 
-| Notaría | Notario | Secretaria |
-|---|---|---|
-| N° 42 — Cochabamba | `notario@notaria42.bo` | `secretaria@notaria42.bo` |
-| N° 7 — La Paz | `notario@notaria7.bo` | `secretaria@notaria7.bo` |
-
----
-
-## Desarrollo por fases
-
-- [x] **Fase 0** — Setup (Next.js, Tailwind, shadcn/ui, Drizzle)
-- [x] **Fase 1** — Modelo de datos + CRUD interno
-- [x] **Fase 2** — Página pública de seguimiento
-- [x] **Fase 3** — Autenticación, multi-tenancy y roles
-- [x] **Fase 4** — Notificaciones por WhatsApp
-- [ ] **Fase 5** — Pulido para demo
+| Notary office      | Notary                 | Secretary                 |
+| ------------------ | ---------------------- | ------------------------- |
+| No. 42 — Cochabamba | `notario@notaria42.bo` | `secretaria@notaria42.bo` |
+| No. 7 — La Paz      | `notario@notaria7.bo`  | `secretaria@notaria7.bo`  |
 
 ---
 
-Proyecto de portafolio. Datos de ejemplo (nombres, cédulas, celulares) son ficticios.
+## Development phases
+
+- [x] **Phase 0** — Setup (Next.js, Tailwind, shadcn/ui, Drizzle)
+- [x] **Phase 1** — Data model + internal CRUD
+- [x] **Phase 2** — Public tracking page
+- [x] **Phase 3** — Authentication, multi-tenancy and roles
+- [x] **Phase 4** — WhatsApp notifications
+- [ ] **Phase 5** — Polish for demo
+
+---
+
+Portfolio project. Sample data (names, ID numbers, phone numbers) is fictional.
